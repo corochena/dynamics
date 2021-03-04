@@ -1,0 +1,104 @@
+from math import sin, cos, atan2, degrees, radians
+from numpy import array, linalg, dot
+from scipy import integrate
+
+# devuelve un vector en base cartesiana dado la base polar y el angulo de giro
+def vCart(vPolar, ang):
+    u = [cos(ang), sin(ang)]
+    v = [-sin(ang), cos(ang)]
+
+    A = [u, v]
+    B = vPolar
+    return linalg.solve(A,B)
+
+# devuelve un vector en base polar dado la base cartesiana y el angulo de giro
+def vPolar(vCart, ang):
+    u = [cos(ang), sin(ang)]
+    v = [-sin(ang), cos(ang)]
+    return [dot(vCart, u), dot(vCart, v)]
+
+# devuelve el angulo de giro que corresponde a un vector expresado en base polar y cartesiana
+def angle(vCart, vPolar):
+    [rx, ry] = vCart 
+    
+    A = [[rx, ry], [ry, -rx]]
+    B = vPolar
+    X = linalg.solve(A,B)
+
+    return atan2(X[1], X[0])
+
+# devuelve la posicion final dado la velocidad en base polar, el tiempo transcurrido y la posicion inicial
+def currPos(Pos, vPolar, time):
+    n = 5000 # change this value to improve precision
+
+    for i in range(n):
+        dt = time / n
+        theta = atan2(Pos[1], Pos[0])
+        dP = vCart(vPolar, theta)*dt
+        Pos = Pos + dP
+
+    return Pos
+
+# Devuelve la posicion final dada la funcion velocidad, posicion inicial, tiempo inicial y final
+# la funcion velocidad depende de t y es la magnitud de er (true) o etheta (false)
+def finalPos(v, pos, t0, t1, er):
+    s = integrate.quad(v, t0, t1)[0] # integrates velocity to get distance 
+    if (er):
+        dr = s * pos / linalg.norm(pos) # displacement vector is distance times unit vector along pos
+        return pos + dr
+    else:
+        dtheta = s / linalg.norm(pos) # angle = arc / radius
+        theta0 = atan2(r0[1], r0[0]) # initial angle
+        thetaFinal = theta0 + dtheta 
+        rfinal = linalg.norm(pos)*array([cos(thetaFinal), sin(thetaFinal)])
+        return rfinal
+
+# Este codigo devuelve la aceleracion en coordenadas cartesianas dado
+# el angulo theta, la velocidad angular w, la aceleracion angular alpha y el radio r como funcion de theta
+# Usa la ecuación de la aceleracion en coordenadas polares a = ... (es complicada)
+# Usa la funcion deriv para hallar la derivada del radio, y deriv2 para la segunda derivada
+# Finalmente plantea un sistema de ecuaciones r.er = rr, r.eth = rth y lo resuelve usando linalg.solve
+def aCart(r, theta, omega, alpha):
+    apolar = [deriv2(r,theta)*omega**2 + alpha*deriv(r,theta)-r(theta)*omega**2, r(theta)*alpha + 2*deriv(r, theta)*omega**2]
+
+    A = [[cos(theta), sin(theta)], [-sin(theta), cos(theta)]]
+    B = apolar
+
+    return linalg.solve(A,B)
+
+# Este codigo devuelve las velocidad en coordenadas cartesianas dado
+# el angulo theta, la velocidad angular w y el radio r como funcion de theta
+# Usa la ecuación de la velocidad en coordenadas polares v = dr/dt er + rw eth
+# Usa la funcion deriv para hallar la derivada del radio
+# Finalmente plantea un sistema de ecuaciones r.er = rr, r.eth = rth y lo resuelve usando linalg.solve
+def vCart(r, theta, omega):
+    polar = [deriv(r, theta) * omega , r(theta) * omega]
+
+    A = [[cos(theta), sin(theta)], [-sin(theta), cos(theta)]]
+    B = polar
+
+    return linalg.solve(A,B)
+
+# encuentra la derivada del vector unitario en la direccion de a(t), dado a'(t)
+def daunitvector_dt(a, aprime):
+    aperp = array([-a[1], a[0]])
+    return dot(aprime, aperp) / dot(aperp, aperp) * aperp / linalg.norm(aperp)
+
+# encuentra la derivada de la magnitud de a(t) respecto a t
+def da_dt(a, aprime):
+    return dot(a, aprime) / linalg.norm(a)
+
+# evalua la primera derivada de f en arg
+def deriv(f, arg):
+    return (f(arg + 1e-6) - f(arg)) / 1e-6
+
+# evalua la segunda derivada de f en arg
+def deriv2(f, arg):
+    return (deriv(f, arg+1e-6) - deriv(f, arg)) / 1e-6
+
+
+# TESTS
+# print(vCart(lambda theta: 4 + 2*sin(5*theta + 1), -1, 2))
+# print(aCart(lambda theta: 4 + 2*cos(3*theta + 1), -2, -2, 3))
+# ang = angle([-1.29001975, 2.88718705], [3,-1])
+# print(degrees(ang), degrees(atan2(12,-11)))
